@@ -10,22 +10,31 @@ const clearText=document.getElementById("clearText");
 
 const DIRS={up:{x:0,y:-1},down:{x:0,y:1},left:{x:-1,y:0},right:{x:1,y:0}};
 
+const FACES={
+  2:{top:2,bottom:5,north:1,south:6,west:3,east:4},
+  3:{top:3,bottom:4,north:1,south:6,west:2,east:5},
+  4:{top:4,bottom:3,north:1,south:6,west:5,east:2},
+  5:{top:5,bottom:2,north:1,south:6,west:4,east:3}
+};
+
 const STAGES=[{
-  name:"十字の入口",
+  name:"入口の間",
   size:7,
   grid:[
     ["void","void","floor","floor","floor","void","void"],
     ["void","floor","floor","floor","floor","floor","void"],
     ["floor","floor","floor","floor","floor","floor","floor"],
-    ["floor","floor","floor","core3","floor","floor","floor"],
+    ["floor","floor","floor","floor","floor","floor","floor"],
     ["floor","floor","floor","floor","floor","floor","floor"],
     ["void","floor","floor","floor","floor","floor","void"],
     ["void","void","floor","floor","floor","void","void"]
   ],
   dice:[
-    {id:"A",x:0,y:2},
-    {id:"B",x:6,y:2},
-    {id:"C",x:3,y:6}
+    {id:"A",x:1,y:1,faces:{...FACES[2]}},
+    {id:"B",x:5,y:1,faces:{...FACES[2]}},
+    {id:"C",x:1,y:5,faces:{...FACES[3]}},
+    {id:"D",x:3,y:5,faces:{...FACES[3]}},
+    {id:"E",x:5,y:5,faces:{...FACES[3]}}
   ]
 }];
 
@@ -38,31 +47,10 @@ let pointerStart=null;
 let movingIds=new Map();
 let isAnimating=false;
 
-function createDefaultFaces(index){
-  const presets=[
-    {top:1,bottom:6,north:2,south:5,west:3,east:4},
-    {top:2,bottom:5,north:6,south:1,west:3,east:4},
-    {top:3,bottom:4,north:2,south:5,west:6,east:1},
-    {top:4,bottom:3,north:2,south:5,west:1,east:6},
-    {top:5,bottom:2,north:1,south:6,west:3,east:4},
-    {top:6,bottom:1,north:5,south:2,west:3,east:4}
-  ];
-  return {...presets[index%presets.length]};
-}
-
-function cloneStage(stage){
-  grid=stage.grid.map(row=>row.map(cell=>{
-    if(typeof cell==="string"&&cell.startsWith("core")){
-      return{type:"core",value:Number(cell.replace("core","")),active:false,perfect:false};
-    }
-    return{type:cell};
-  }));
-  dice=stage.dice.map((d,index)=>({...d,faces:createDefaultFaces(index)}));
-}
-
 function initGame(){
   const stage=STAGES[currentStageIndex];
-  cloneStage(stage);
+  grid=stage.grid.map(row=>row.map(type=>({type})));
+  dice=stage.dice.map(d=>({id:d.id,x:d.x,y:d.y,faces:{...d.faces}}));
   selectedDiceId=null;
   moveCount=0;
   pointerStart=null;
@@ -71,35 +59,24 @@ function initGame(){
   clearModal.classList.add("hidden");
   stageNameEl.textContent=stage.name;
   boardEl.style.setProperty("--size",stage.size);
-  setMessage("ダイスをタップして選択。スワイプか十字キーで転がそう。");
-  updateCores();
+  setMessage("ダイスを単独で転がそう。同じ上面の目が、その数以上つながると消える。");
   render();
 }
 
 function render(){
   boardEl.innerHTML="";
   moveCountEl.textContent=moveCount;
-  const selectedCluster=selectedDiceId?getCluster(selectedDiceId):[];
-  const selectedIds=new Set(selectedCluster.map(d=>d.id));
-  selectedInfoEl.textContent=selectedDiceId?`${selectedCluster.length}個`:"なし";
+  const selected=dice.find(d=>d.id===selectedDiceId);
+  selectedInfoEl.textContent=selected?`上面${selected.faces.top}`:"なし";
 
   for(let y=0;y<grid.length;y++){
     for(let x=0;x<grid[y].length;x++){
       const cellData=grid[y][x];
       const cell=document.createElement("div");
       cell.classList.add("cell");
-      cell.dataset.x=x;
-      cell.dataset.y=y;
-
       if(cellData.type==="void")cell.classList.add("void");
       if(cellData.type==="floor")cell.classList.add("floor");
       if(cellData.type==="wall"){cell.classList.add("wall");cell.textContent="■";}
-      if(cellData.type==="core"){
-        cell.classList.add("core");
-        cell.textContent=cellData.value;
-        if(cellData.active&&cellData.perfect)cell.classList.add("active-perfect");
-        else if(cellData.active)cell.classList.add("active-clear");
-      }
 
       const die=dice.find(d=>d.x===x&&d.y===y);
       if(die){
@@ -110,13 +87,13 @@ function render(){
         const movingDir=movingIds.get(die.id);
         if(movingDir)dieEl.classList.add("moving",`move-${movingDir}`);
         if(die.id===selectedDiceId)dieEl.classList.add("selected");
-        else if(selectedIds.has(die.id))dieEl.classList.add("cluster");
 
         dieEl.appendChild(createDiceCube(die.faces));
         dieEl.addEventListener("pointerdown",onDicePointerDown);
         dieEl.addEventListener("click",()=>selectDice(die.id));
         cell.appendChild(dieEl);
       }
+
       boardEl.appendChild(cell);
     }
   }
@@ -180,56 +157,41 @@ function onDicePointerUp(event){
 function selectDice(id){
   if(isAnimating)return;
   selectedDiceId=id;
-  const cluster=getCluster(id);
-  setMessage(`ダイス${id}を選択中。ドッキング塊：${cluster.length}個`);
+  const die=dice.find(d=>d.id===id);
+  setMessage(`ダイス${id}を選択中。上面：${die.faces.top}`);
   render();
-}
-
-function getCluster(startId){
-  const start=dice.find(d=>d.id===startId);
-  if(!start)return[];
-  const visited=new Set([start.id]);
-  const queue=[start];
-
-  while(queue.length){
-    const current=queue.shift();
-    for(const other of dice){
-      if(visited.has(other.id))continue;
-      const adjacent=Math.abs(current.x-other.x)+Math.abs(current.y-other.y)===1;
-      if(adjacent){
-        visited.add(other.id);
-        queue.push(other);
-      }
-    }
-  }
-  return dice.filter(d=>visited.has(d.id));
 }
 
 function moveSelected(dirName){
   if(isAnimating)return;
-  if(!selectedDiceId){
+
+  const die=dice.find(d=>d.id===selectedDiceId);
+  if(!die){
     setMessage("先にダイスをタップして選択してね。");
     shakeBoard();
     return;
   }
 
   const dir=DIRS[dirName];
-  const cluster=getCluster(selectedDiceId);
-  const clusterIds=new Set(cluster.map(d=>d.id));
+  const nx=die.x+dir.x;
+  const ny=die.y+dir.y;
 
-  const canMove=cluster.every(d=>{
-    const nx=d.x+dir.x;
-    const ny=d.y+dir.y;
-    if(!isInside(nx,ny))return false;
-    const targetCell=grid[ny][nx];
-    if(targetCell.type==="void"||targetCell.type==="wall"||targetCell.type==="core")return false;
-    const otherDice=dice.find(other=>other.x===nx&&other.y===ny);
-    if(otherDice&&!clusterIds.has(otherDice.id))return false;
-    return true;
-  });
-
-  if(!canMove){
+  if(!isInside(nx,ny)){
     setMessage("そこには転がせない！");
+    shakeBoard();
+    return;
+  }
+
+  const targetCell=grid[ny][nx];
+  if(targetCell.type==="void"||targetCell.type==="wall"){
+    setMessage("そこには転がせない！");
+    shakeBoard();
+    return;
+  }
+
+  const otherDice=dice.find(d=>d.x===nx&&d.y===ny);
+  if(otherDice){
+    setMessage("他のダイスがあるマスには進めない！");
     shakeBoard();
     return;
   }
@@ -237,24 +199,75 @@ function moveSelected(dirName){
   isAnimating=true;
   movingIds.clear();
 
-  for(const d of cluster){
-    rollDiceFaces(d.faces,dirName);
-    d.x+=dir.x;
-    d.y+=dir.y;
-    movingIds.set(d.id,dirName);
-  }
-
+  rollDiceFaces(die.faces,dirName);
+  die.x=nx;
+  die.y=ny;
+  movingIds.set(die.id,dirName);
   moveCount++;
-  updateCores();
+
   render();
 
   setTimeout(()=>{
     movingIds.clear();
+    const removed=resolveMatches();
     isAnimating=false;
-    updateCores();
     render();
-    checkClear();
+
+    if(dice.length===0){
+      clearText.textContent=`全ダイス消去！ 移動回数：${moveCount}`;
+      clearModal.classList.remove("hidden");
+      return;
+    }
+
+    if(removed>0){
+      selectedDiceId=null;
+      setMessage(`${removed}個のダイスが消えた！`);
+      render();
+    }else{
+      setMessage("同じ上面のダイスを、その目の数以上つなげよう。");
+    }
   },270);
+}
+
+function resolveMatches(){
+  const visited=new Set();
+  const removeIds=new Set();
+
+  for(const start of dice){
+    if(visited.has(start.id))continue;
+
+    const value=start.faces.top;
+    const group=[];
+    const queue=[start];
+    visited.add(start.id);
+
+    while(queue.length){
+      const current=queue.shift();
+      group.push(current);
+
+      for(const other of dice){
+        if(visited.has(other.id))continue;
+        if(other.faces.top!==value)continue;
+
+        const adjacent=Math.abs(current.x-other.x)+Math.abs(current.y-other.y)===1;
+        if(adjacent){
+          visited.add(other.id);
+          queue.push(other);
+        }
+      }
+    }
+
+    if(group.length>=value){
+      group.forEach(d=>removeIds.add(d.id));
+    }
+  }
+
+  if(removeIds.size===0)return 0;
+
+  dice=dice.filter(d=>!removeIds.has(d.id));
+  if(selectedDiceId&&removeIds.has(selectedDiceId))selectedDiceId=null;
+
+  return removeIds.size;
 }
 
 function rollDiceFaces(faces,dirName){
@@ -265,8 +278,6 @@ function rollDiceFaces(faces,dirName){
     faces.bottom=old.east;
     faces.east=old.top;
     faces.west=old.bottom;
-    faces.north=old.north;
-    faces.south=old.south;
   }
 
   if(dirName==="left"){
@@ -274,8 +285,6 @@ function rollDiceFaces(faces,dirName){
     faces.bottom=old.west;
     faces.west=old.top;
     faces.east=old.bottom;
-    faces.north=old.north;
-    faces.south=old.south;
   }
 
   if(dirName==="up"){
@@ -283,8 +292,6 @@ function rollDiceFaces(faces,dirName){
     faces.bottom=old.north;
     faces.north=old.top;
     faces.south=old.bottom;
-    faces.east=old.east;
-    faces.west=old.west;
   }
 
   if(dirName==="down"){
@@ -292,58 +299,16 @@ function rollDiceFaces(faces,dirName){
     faces.bottom=old.south;
     faces.south=old.top;
     faces.north=old.bottom;
-    faces.east=old.east;
-    faces.west=old.west;
   }
-}
-
-function updateCores(){
-  for(let y=0;y<grid.length;y++){
-    for(let x=0;x<grid[y].length;x++){
-      const cell=grid[y][x];
-      if(cell.type!=="core")continue;
-      const count=countAdjacentDice(x,y);
-      cell.active=count>=cell.value;
-      cell.perfect=count===cell.value;
-    }
-  }
-}
-
-function countAdjacentDice(x,y){
-  return[
-    {x,y:y-1},
-    {x,y:y+1},
-    {x:x-1,y},
-    {x:x+1,y}
-  ].filter(pos=>dice.some(d=>d.x===pos.x&&d.y===pos.y)).length;
-}
-
-function checkClear(){
-  const cores=[];
-  for(const row of grid){
-    for(const cell of row){
-      if(cell.type==="core")cores.push(cell);
-    }
-  }
-
-  const allActive=cores.every(core=>core.active);
-  if(!allActive){
-    setMessage("いい感じ。数字コアの周囲にダイスを集めよう。");
-    return;
-  }
-
-  const allPerfect=cores.every(core=>core.perfect);
-  clearText.textContent=allPerfect
-    ?`全コアPERFECT！ 移動回数：${moveCount}`
-    :`クリア！ 移動回数：${moveCount}`;
-  clearModal.classList.remove("hidden");
 }
 
 function isInside(x,y){
   return y>=0&&y<grid.length&&x>=0&&x<grid[y].length;
 }
 
-function setMessage(text){messageEl.textContent=text}
+function setMessage(text){
+  messageEl.textContent=text;
+}
 
 function shakeBoard(){
   boardEl.classList.remove("shake");
