@@ -81,26 +81,32 @@ button{font:inherit}
 
 .board-shell{
   position:relative;
-  height:355px;
+  height:330px;
   margin:6px 0 10px;
 }
 .board-shadow{
   position:absolute;
   left:50%;
-  top:51%;
-  width:305px;
-  height:305px;
-  transform:translate(-50%,-50%) rotate(45deg);
-  border-radius:38px;
-  background:linear-gradient(180deg,rgba(9,18,52,.8),rgba(3,7,25,.96));
-  box-shadow:0 32px 70px rgba(0,0,0,.5);
+  top:58%;
+  width:330px;
+  height:210px;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:radial-gradient(
+    ellipse at center,
+    rgba(24,42,105,.42) 0%,
+    rgba(8,15,45,.28) 48%,
+    rgba(0,0,0,0) 72%
+  );
+  box-shadow:none;
+  filter:blur(6px);
 }
 .board{
   --size:7;
   --gap:8px;
   position:absolute;
   left:50%;
-  top:51%;
+  top:50%;
   width:305px;
   height:305px;
   display:grid;
@@ -124,13 +130,12 @@ button{font:inherit}
 }
 .cell.floor{
   background:
-    linear-gradient(180deg,rgba(255,255,255,.22),rgba(155,171,235,.05)),
-    linear-gradient(145deg,#3e4b82,#182247 75%);
+    linear-gradient(180deg,rgba(255,255,255,.2),rgba(155,171,235,.06)),
+    linear-gradient(145deg,#3a4679,#1a2348 75%);
   border:1px solid rgba(255,255,255,.14);
   box-shadow:
-    inset 0 2px 2px rgba(255,255,255,.24),
-    inset 0 -5px 10px rgba(0,0,0,.28),
-    0 0 0 1px rgba(255,255,255,.04);
+    inset 0 2px 2px rgba(255,255,255,.2),
+    inset 0 -3px 6px rgba(0,0,0,.22);
 }
 .cell.wall{
   background:linear-gradient(145deg,#515b7d,#1f2641);
