@@ -22,29 +22,83 @@ const FACE_PRESETS={
   2:{top:2,bottom:5,north:1,south:6,west:3,east:4},
   3:{top:3,bottom:4,north:1,south:6,west:2,east:5},
   4:{top:4,bottom:3,north:1,south:6,west:5,east:2},
-  5:{top:5,bottom:2,north:1,south:6,west:4,east:3}
+  5:{top:5,bottom:2,north:1,south:6,west:4,east:3},
+  6:{top:6,bottom:1,north:2,south:5,west:3,east:4}
 };
 
-const STAGES=[{
-  name:"入口の間",
-  size:7,
-  grid:[
-    ["void","void","floor","floor","floor","void","void"],
-    ["void","floor","floor","floor","floor","floor","void"],
-    ["floor","floor","floor","floor","floor","floor","floor"],
-    ["floor","floor","floor","floor","floor","floor","floor"],
-    ["floor","floor","floor","floor","floor","floor","floor"],
-    ["void","floor","floor","floor","floor","floor","void"],
-    ["void","void","floor","floor","floor","void","void"]
-  ],
-  dice:[
-    {id:"A",x:1,y:1,faces:{...FACE_PRESETS[2]}},
-    {id:"B",x:5,y:1,faces:{...FACE_PRESETS[2]}},
-    {id:"C",x:1,y:5,faces:{...FACE_PRESETS[3]}},
-    {id:"D",x:3,y:5,faces:{...FACE_PRESETS[3]}},
-    {id:"E",x:5,y:5,faces:{...FACE_PRESETS[3]}}
-  ]
-}];
+const STAGES=[
+  {
+    name:"1-入口の間",
+    size:7,
+    grid:[
+      ["void","void","floor","floor","floor","void","void"],
+      ["void","floor","floor","floor","floor","floor","void"],
+      ["floor","floor","floor","floor","floor","floor","floor"],
+      ["floor","floor","floor","floor","floor","floor","floor"],
+      ["floor","floor","floor","floor","floor","floor","floor"],
+      ["void","floor","floor","floor","floor","floor","void"],
+      ["void","void","floor","floor","floor","void","void"]
+    ],
+    diceValues:[2,2,3,3,3]
+  },
+  {
+    name:"2-十字回廊",
+    size:7,
+    grid:[
+      ["void","void","void","floor","void","void","void"],
+      ["void","void","floor","floor","floor","void","void"],
+      ["void","floor","floor","floor","floor","floor","void"],
+      ["floor","floor","floor","floor","floor","floor","floor"],
+      ["void","floor","floor","floor","floor","floor","void"],
+      ["void","void","floor","floor","floor","void","void"],
+      ["void","void","void","floor","void","void","void"]
+    ],
+    diceValues:[2,2,3,3,4,4]
+  },
+  {
+    name:"3-欠けた広間",
+    size:7,
+    grid:[
+      ["void","floor","floor","floor","floor","floor","void"],
+      ["floor","floor","floor","void","floor","floor","floor"],
+      ["floor","floor","floor","floor","floor","floor","floor"],
+      ["floor","void","floor","floor","floor","void","floor"],
+      ["floor","floor","floor","floor","floor","floor","floor"],
+      ["floor","floor","floor","void","floor","floor","floor"],
+      ["void","floor","floor","floor","floor","floor","void"]
+    ],
+    diceValues:[2,2,3,3,3,4,4]
+  },
+  {
+    name:"4-輪の祭壇",
+    size:7,
+    grid:[
+      ["void","floor","floor","floor","floor","floor","void"],
+      ["floor","floor","floor","void","floor","floor","floor"],
+      ["floor","floor","void","void","void","floor","floor"],
+      ["floor","void","void","void","void","void","floor"],
+      ["floor","floor","void","void","void","floor","floor"],
+      ["floor","floor","floor","void","floor","floor","floor"],
+      ["void","floor","floor","floor","floor","floor","void"]
+    ],
+    diceValues:[2,2,3,3,4,4,5]
+  },
+  {
+    name:"5-深層の盤",
+    size:8,
+    grid:[
+      ["void","void","floor","floor","floor","floor","void","void"],
+      ["void","floor","floor","floor","floor","floor","floor","void"],
+      ["floor","floor","floor","void","floor","floor","floor","floor"],
+      ["floor","floor","void","floor","floor","void","floor","floor"],
+      ["floor","floor","floor","floor","void","floor","floor","floor"],
+      ["floor","floor","floor","void","floor","floor","floor","floor"],
+      ["void","floor","floor","floor","floor","floor","floor","void"],
+      ["void","void","floor","floor","floor","floor","void","void"]
+    ],
+    diceValues:[2,2,3,3,3,4,4,5,5]
+  }
+];
 
 let currentStageIndex=0;
 let grid=[];
@@ -61,12 +115,7 @@ function initGame(){
   const stage=STAGES[currentStageIndex];
 
   grid=stage.grid.map(row=>row.map(type=>({type})));
-  dice=stage.dice.map(d=>({
-    id:d.id,
-    x:d.x,
-    y:d.y,
-    faces:{...d.faces}
-  }));
+  dice=createRandomDice(stage);
 
   selectedDiceId=null;
   moveCount=0;
@@ -82,6 +131,87 @@ function initGame(){
 
   setMessage("ダイスを選んで転がそう。同じ上面の目が、その目の数以上つながると消える。");
   render();
+}
+
+function createRandomDice(stage){
+  const floorCells=[];
+
+  for(let y=0;y<stage.grid.length;y++){
+    for(let x=0;x<stage.grid[y].length;x++){
+      if(stage.grid[y][x]==="floor"){
+        floorCells.push({x,y});
+      }
+    }
+  }
+
+  for(let attempt=0;attempt<400;attempt++){
+    const cells=shuffleArray([...floorCells]);
+
+    const result=stage.diceValues.map((value,index)=>({
+      id:String.fromCharCode(65+index),
+      x:cells[index].x,
+      y:cells[index].y,
+      faces:{...FACE_PRESETS[value]}
+    }));
+
+    if(!hasInitialClearGroup(result)){
+      return result;
+    }
+  }
+
+  const cells=shuffleArray([...floorCells]);
+
+  return stage.diceValues.map((value,index)=>({
+    id:String.fromCharCode(65+index),
+    x:cells[index].x,
+    y:cells[index].y,
+    faces:{...FACE_PRESETS[value]}
+  }));
+}
+
+function shuffleArray(array){
+  for(let i=array.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [array[i],array[j]]=[array[j],array[i]];
+  }
+  return array;
+}
+
+function hasInitialClearGroup(diceList){
+  const visited=new Set();
+
+  for(const start of diceList){
+    if(visited.has(start.id)) continue;
+
+    const value=start.faces.top;
+    const group=[];
+    const queue=[start];
+
+    visited.add(start.id);
+
+    while(queue.length){
+      const current=queue.shift();
+      group.push(current);
+
+      for(const other of diceList){
+        if(visited.has(other.id)) continue;
+        if(other.faces.top!==value) continue;
+
+        const adjacent=Math.abs(current.x-other.x)+Math.abs(current.y-other.y)===1;
+
+        if(adjacent){
+          visited.add(other.id);
+          queue.push(other);
+        }
+      }
+    }
+
+    if(value>=MIN_CLEAR_VALUE&&group.length>=value){
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function render(){
@@ -302,12 +432,31 @@ function finishTurn(){
   render();
 
   if(dice.length===0){
-    clearText.textContent=`全ダイス消去！ 移動回数：${moveCount}`;
+    const isLastStage=currentStageIndex===STAGES.length-1;
+
+    clearText.textContent=isLastStage
+      ?`全5ステージクリア！ 移動回数：${moveCount}`
+      :`ステージクリア！ 移動回数：${moveCount}`;
+
+    modalResetButton.textContent=isLastStage
+      ?"最初から遊ぶ"
+      :"次のステージへ";
+
     clearModal.classList.remove("hidden");
     return;
   }
 
   setMessage("次の一手を考えよう。1は消えない。");
+}
+
+function nextStage(){
+  if(currentStageIndex>=STAGES.length-1){
+    currentStageIndex=0;
+  }else{
+    currentStageIndex++;
+  }
+
+  initGame();
 }
 
 function blockMove(){
@@ -418,6 +567,6 @@ document.querySelectorAll(".move-button").forEach(button=>{
 });
 
 resetButton.addEventListener("click",initGame);
-modalResetButton.addEventListener("click",initGame);
+modalResetButton.addEventListener("click",nextStage);
 
 initGame();
