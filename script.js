@@ -9,6 +9,7 @@ const clearModal=document.getElementById("clearModal");
 const clearText=document.getElementById("clearText");
 
 const DIRS={up:{x:0,y:-1},down:{x:0,y:1},left:{x:-1,y:0},right:{x:1,y:0}};
+const MIN_CLEAR_VALUE=2;
 
 const FACES={
   2:{top:2,bottom:5,north:1,south:6,west:3,east:4},
@@ -59,7 +60,7 @@ function initGame(){
   clearModal.classList.add("hidden");
   stageNameEl.textContent=stage.name;
   boardEl.style.setProperty("--size",stage.size);
-  setMessage("ダイスを単独で転がそう。同じ上面の目が、その数以上つながると消える。");
+  setMessage("ダイスを単独で転がそう。動かしたダイスを含む同じ目の連結だけが消える。1は消えない。");
   render();
 }
 
@@ -74,9 +75,13 @@ function render(){
       const cellData=grid[y][x];
       const cell=document.createElement("div");
       cell.classList.add("cell");
+
       if(cellData.type==="void")cell.classList.add("void");
       if(cellData.type==="floor")cell.classList.add("floor");
-      if(cellData.type==="wall"){cell.classList.add("wall");cell.textContent="■";}
+      if(cellData.type==="wall"){
+        cell.classList.add("wall");
+        cell.textContent="■";
+      }
 
       const die=dice.find(d=>d.x===x&&d.y===y);
       if(die){
@@ -102,6 +107,7 @@ function render(){
 function createDiceCube(faces){
   const cube=document.createElement("div");
   cube.classList.add("dice-cube");
+
   [
     {className:"cube-top",value:faces.top},
     {className:"cube-bottom",value:faces.bottom},
@@ -115,6 +121,7 @@ function createDiceCube(faces){
     createPips(data.value).forEach(pip=>face.appendChild(pip));
     cube.appendChild(face);
   });
+
   return cube;
 }
 
@@ -127,6 +134,7 @@ function createPips(value){
     5:["tl","tr","mc","bl","br"],
     6:["tl","ml","bl","tr","mr","br"]
   };
+
   return(pipMap[value]||["mc"]).map(pos=>{
     const pip=document.createElement("span");
     pip.classList.add("pip",pos);
@@ -136,28 +144,43 @@ function createPips(value){
 
 function onDicePointerDown(event){
   if(isAnimating)return;
+
   const id=event.currentTarget.dataset.id;
   selectDice(id);
-  pointerStart={x:event.clientX,y:event.clientY};
+
+  pointerStart={
+    x:event.clientX,
+    y:event.clientY
+  };
+
   event.currentTarget.setPointerCapture(event.pointerId);
   event.currentTarget.addEventListener("pointerup",onDicePointerUp,{once:true});
 }
 
 function onDicePointerUp(event){
   if(isAnimating||!pointerStart||!selectedDiceId)return;
+
   const dx=event.clientX-pointerStart.x;
   const dy=event.clientY-pointerStart.y;
   const distance=Math.hypot(dx,dy);
+
   pointerStart=null;
+
   if(distance<28)return;
-  const dirName=Math.abs(dx)>Math.abs(dy)?(dx>0?"right":"left"):(dy>0?"down":"up");
+
+  const dirName=Math.abs(dx)>Math.abs(dy)
+    ?(dx>0?"right":"left")
+    :(dy>0?"down":"up");
+
   moveSelected(dirName);
 }
 
 function selectDice(id){
   if(isAnimating)return;
+
   selectedDiceId=id;
   const die=dice.find(d=>d.id===id);
+
   setMessage(`ダイス${id}を選択中。上面：${die.faces.top}`);
   render();
 }
@@ -166,6 +189,7 @@ function moveSelected(dirName){
   if(isAnimating)return;
 
   const die=dice.find(d=>d.id===selectedDiceId);
+
   if(!die){
     setMessage("先にダイスをタップして選択してね。");
     shakeBoard();
@@ -183,6 +207,7 @@ function moveSelected(dirName){
   }
 
   const targetCell=grid[ny][nx];
+
   if(targetCell.type==="void"||targetCell.type==="wall"){
     setMessage("そこには転がせない！");
     shakeBoard();
@@ -190,6 +215,7 @@ function moveSelected(dirName){
   }
 
   const otherDice=dice.find(d=>d.x===nx&&d.y===ny);
+
   if(otherDice){
     setMessage("他のダイスがあるマスには進めない！");
     shakeBoard();
@@ -209,7 +235,9 @@ function moveSelected(dirName){
 
   setTimeout(()=>{
     movingIds.clear();
-    const removed=resolveMatches();
+
+    const removed=resolveMatchesFrom(die.id);
+
     isAnimating=false;
     render();
 
@@ -224,48 +252,50 @@ function moveSelected(dirName){
       setMessage(`${removed}個のダイスが消えた！`);
       render();
     }else{
-      setMessage("同じ上面のダイスを、その目の数以上つなげよう。");
+      setMessage("動かしたダイスを含む同じ目の連結を作ろう。1は消えない。");
     }
   },270);
 }
 
-function resolveMatches(){
-  const visited=new Set();
-  const removeIds=new Set();
+function resolveMatchesFrom(startId){
+  const start=dice.find(d=>d.id===startId);
+  if(!start)return 0;
 
-  for(const start of dice){
-    if(visited.has(start.id))continue;
+  const value=start.faces.top;
 
-    const value=start.faces.top;
-    const group=[];
-    const queue=[start];
-    visited.add(start.id);
+  if(value<MIN_CLEAR_VALUE)return 0;
 
-    while(queue.length){
-      const current=queue.shift();
-      group.push(current);
+  const visited=new Set([start.id]);
+  const group=[];
+  const queue=[start];
 
-      for(const other of dice){
-        if(visited.has(other.id))continue;
-        if(other.faces.top!==value)continue;
+  while(queue.length){
+    const current=queue.shift();
+    group.push(current);
 
-        const adjacent=Math.abs(current.x-other.x)+Math.abs(current.y-other.y)===1;
-        if(adjacent){
-          visited.add(other.id);
-          queue.push(other);
-        }
+    for(const other of dice){
+      if(visited.has(other.id))continue;
+      if(other.faces.top!==value)continue;
+
+      const adjacent=
+        Math.abs(current.x-other.x)+Math.abs(current.y-other.y)===1;
+
+      if(adjacent){
+        visited.add(other.id);
+        queue.push(other);
       }
-    }
-
-    if(group.length>=value){
-      group.forEach(d=>removeIds.add(d.id));
     }
   }
 
-  if(removeIds.size===0)return 0;
+  if(group.length<value)return 0;
+
+  const removeIds=new Set(group.map(d=>d.id));
 
   dice=dice.filter(d=>!removeIds.has(d.id));
-  if(selectedDiceId&&removeIds.has(selectedDiceId))selectedDiceId=null;
+
+  if(selectedDiceId&&removeIds.has(selectedDiceId)){
+    selectedDiceId=null;
+  }
 
   return removeIds.size;
 }
@@ -278,6 +308,8 @@ function rollDiceFaces(faces,dirName){
     faces.bottom=old.east;
     faces.east=old.top;
     faces.west=old.bottom;
+    faces.north=old.north;
+    faces.south=old.south;
   }
 
   if(dirName==="left"){
@@ -285,6 +317,8 @@ function rollDiceFaces(faces,dirName){
     faces.bottom=old.west;
     faces.west=old.top;
     faces.east=old.bottom;
+    faces.north=old.north;
+    faces.south=old.south;
   }
 
   if(dirName==="up"){
@@ -292,6 +326,8 @@ function rollDiceFaces(faces,dirName){
     faces.bottom=old.north;
     faces.north=old.top;
     faces.south=old.bottom;
+    faces.east=old.east;
+    faces.west=old.west;
   }
 
   if(dirName==="down"){
@@ -299,6 +335,8 @@ function rollDiceFaces(faces,dirName){
     faces.bottom=old.south;
     faces.south=old.top;
     faces.north=old.bottom;
+    faces.east=old.east;
+    faces.west=old.west;
   }
 }
 
