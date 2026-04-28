@@ -8,40 +8,34 @@
 </head>
 <body>
   <main class="app">
-    <section class="fake-top">
-      <div class="status-row">
-        <span>12:24</span>
-        <span>🔕</span>
-        <span class="status-right">▮▮▮ Wi‑Fi 80</span>
+    <header class="game-header">
+      <div>
+        <h1>DDD</h1>
+        <p>Dice Docking Dungeon</p>
       </div>
-
-      <div class="browser-row">
-        <button class="circle-btn" type="button">✕</button>
-        <div class="url-pill">ntojuku-create.github.io</div>
-        <button class="circle-btn" type="button">☰</button>
-      </div>
-    </section>
+      <button id="resetButton" class="reset-btn" type="button">リセット</button>
+    </header>
 
     <section class="hud">
       <div class="hud-card">
-        <span class="hud-label">ステージ</span>
+        <span>ステージ</span>
         <strong id="stageName">---</strong>
       </div>
       <div class="hud-card">
-        <span class="hud-label">移動</span>
+        <span>移動</span>
         <strong id="moveCount">0</strong>
       </div>
       <div class="hud-card">
-        <span class="hud-label">選択中</span>
+        <span>選択中</span>
         <strong id="selectedInfo">なし</strong>
       </div>
       <div class="hud-card">
-        <span class="hud-label">残り</span>
+        <span>残り</span>
         <strong id="remainCount">0</strong>
       </div>
     </section>
 
-    <section class="message" id="message">
+    <section id="message" class="message">
       ダイスを選んで転がそう。同じ上面の目が、その目の数以上つながると消える。
     </section>
 
@@ -57,18 +51,12 @@
       <button class="move-button down" data-dir="down" type="button">↓</button>
     </section>
 
-    <section class="bottom-panel">
-      <div class="rule-card">
-        <h2>ルール</h2>
-        <p>ダイスは1個ずつ単独で転がします。</p>
-        <p>同じ上面の目が縦横につながり、その目の数以上になると全部消えます。</p>
-        <p>例：上面3のダイスが3個以上つながると、その3のダイスが消えます。</p>
-        <p>1は消えません。盤面のダイスをすべて消すとクリアです。</p>
-      </div>
-
-      <div class="mini-actions">
-        <button id="resetButton" class="mini-btn" type="button">↺ リセット</button>
-      </div>
+    <section class="rule-card">
+      <h2>ルール</h2>
+      <p>ダイスは1個ずつ単独で転がします。</p>
+      <p>同じ上面の目が縦横につながり、その目の数以上になると全部消えます。</p>
+      <p>例：上面3のダイスが3個以上つながると、その3のダイスが消えます。</p>
+      <p>1は消えません。盤面のダイスをすべて消すとクリアです。</p>
     </section>
   </main>
 
