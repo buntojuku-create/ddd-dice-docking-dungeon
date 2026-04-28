@@ -26,7 +26,7 @@ const FACE_PRESETS={
 };
 
 const STAGES=[{
-  name:"UIテスト",
+  name:"入口の間",
   size:7,
   grid:[
     ["void","void","floor","floor","floor","void","void"],
@@ -39,11 +39,10 @@ const STAGES=[{
   ],
   dice:[
     {id:"A",x:1,y:1,faces:{...FACE_PRESETS[2]}},
-    {id:"B",x:5,y:1,faces:{...FACE_PRESETS[3]}},
-    {id:"C",x:2,y:3,faces:{...FACE_PRESETS[4]}},
-    {id:"D",x:4,y:3,faces:{...FACE_PRESETS[2]}},
-    {id:"E",x:1,y:5,faces:{...FACE_PRESETS[3]}},
-    {id:"F",x:5,y:5,faces:{...FACE_PRESETS[4]}}
+    {id:"B",x:5,y:1,faces:{...FACE_PRESETS[2]}},
+    {id:"C",x:1,y:5,faces:{...FACE_PRESETS[3]}},
+    {id:"D",x:3,y:5,faces:{...FACE_PRESETS[3]}},
+    {id:"E",x:5,y:5,faces:{...FACE_PRESETS[3]}}
   ]
 }];
 
@@ -60,6 +59,7 @@ let isAnimating=false;
 
 function initGame(){
   const stage=STAGES[currentStageIndex];
+
   grid=stage.grid.map(row=>row.map(type=>({type})));
   dice=stage.dice.map(d=>({
     id:d.id,
@@ -67,6 +67,7 @@ function initGame(){
     y:d.y,
     faces:{...d.faces}
   }));
+
   selectedDiceId=null;
   moveCount=0;
   pointerStart=null;
@@ -74,9 +75,11 @@ function initGame(){
   removingIds.clear();
   flashCells=[];
   isAnimating=false;
+
   clearModal.classList.add("hidden");
   boardEl.style.setProperty("--size",stage.size);
   stageNameEl.textContent=stage.name;
+
   setMessage("ダイスを選んで転がそう。同じ上面の目が、その目の数以上つながると消える。");
   render();
 }
@@ -87,7 +90,7 @@ function render(){
   remainCountEl.textContent=dice.length;
 
   const selected=dice.find(d=>d.id===selectedDiceId);
-  selectedInfoEl.textContent=selected?`${selected.id} / ${selected.faces.top}`:"なし";
+  selectedInfoEl.textContent=selected?`上面${selected.faces.top}`:"なし";
 
   for(let y=0;y<grid.length;y++){
     for(let x=0;x<grid[y].length;x++){
@@ -104,6 +107,7 @@ function render(){
       }
 
       const die=dice.find(d=>d.x===x&&d.y===y);
+
       if(die){
         const dieEl=document.createElement("div");
         dieEl.classList.add("dice");
@@ -133,16 +137,10 @@ function createDie(faces){
   top.classList.add("die-top");
   createPips(faces.top).forEach(pip=>top.appendChild(pip));
 
-  const badge=document.createElement("div");
-  badge.classList.add("die-top-value");
-  badge.textContent=faces.top;
-  top.appendChild(badge);
-
   const front=document.createElement("div");
   front.classList.add("die-front");
   createPips(faces.south).forEach(pip=>{
     const p=pip.cloneNode(true);
-    p.style.transform="scale(.82)";
     front.appendChild(p);
   });
 
@@ -150,13 +148,13 @@ function createDie(faces){
   right.classList.add("die-right");
   createPips(faces.east).forEach(pip=>{
     const p=pip.cloneNode(true);
-    p.style.transform="scale(.82)";
     right.appendChild(p);
   });
 
   body.appendChild(right);
   body.appendChild(front);
   body.appendChild(top);
+
   return body;
 }
 
@@ -169,6 +167,7 @@ function createPips(value){
     5:["tl","tr","mc","bl","br"],
     6:["tl","ml","bl","tr","mr","br"]
   };
+
   return (pipMap[value]||["mc"]).map(pos=>{
     const pip=document.createElement("span");
     pip.classList.add("pip",pos);
@@ -182,7 +181,11 @@ function onDicePointerDown(event){
   const id=event.currentTarget.dataset.id;
   selectDice(id);
 
-  pointerStart={x:event.clientX,y:event.clientY};
+  pointerStart={
+    x:event.clientX,
+    y:event.clientY
+  };
+
   event.currentTarget.setPointerCapture(event.pointerId);
   event.currentTarget.addEventListener("pointerup",onDicePointerUp,{once:true});
 }
@@ -193,6 +196,7 @@ function onDicePointerUp(event){
   const dx=event.clientX-pointerStart.x;
   const dy=event.clientY-pointerStart.y;
   const distance=Math.hypot(dx,dy);
+
   pointerStart=null;
 
   if(distance<26) return;
@@ -206,11 +210,14 @@ function onDicePointerUp(event){
 
 function selectDice(id){
   if(isAnimating) return;
+
   selectedDiceId=id;
+
   const die=dice.find(d=>d.id===id);
   if(die){
     setMessage(`ダイス${die.id}を選択中。現在の上面は ${die.faces.top}。`);
   }
+
   render();
 }
 
@@ -218,6 +225,7 @@ function moveSelected(dirName){
   if(isAnimating) return;
 
   const die=dice.find(d=>d.id===selectedDiceId);
+
   if(!die){
     setMessage("先にダイスをタップして選択してね。");
     shakeBoard();
@@ -234,6 +242,7 @@ function moveSelected(dirName){
   }
 
   const targetCell=grid[ny][nx];
+
   if(targetCell.type==="void"||targetCell.type==="wall"){
     blockMove();
     return;
@@ -251,6 +260,7 @@ function moveSelected(dirName){
   flashCells=[];
 
   rollDiceFaces(die.faces,dirName);
+
   die.x=nx;
   die.y=ny;
   movingIds.set(die.id,dirName);
@@ -260,17 +270,23 @@ function moveSelected(dirName){
 
   setTimeout(()=>{
     movingIds.clear();
+
     const result=resolveMatchesFrom(die.id);
 
     if(result.removedIds.length>0){
       removingIds=new Set(result.removedIds);
       flashCells=result.positions;
-      setMessage(`${result.removedIds.length}個消える！`);
+
+      setMessage(`${result.removedIds.length}個のダイスが消える！`);
       render();
 
       setTimeout(()=>{
         dice=dice.filter(d=>!removingIds.has(d.id));
-        if(selectedDiceId&&removingIds.has(selectedDiceId)) selectedDiceId=null;
+
+        if(selectedDiceId&&removingIds.has(selectedDiceId)){
+          selectedDiceId=null;
+        }
+
         removingIds.clear();
         flashCells=[];
         finishTurn();
@@ -301,11 +317,13 @@ function blockMove(){
 
 function resolveMatchesFrom(startId){
   const start=dice.find(d=>d.id===startId);
+
   if(!start){
     return {removedIds:[],positions:[]};
   }
 
   const value=start.faces.top;
+
   if(value<MIN_CLEAR_VALUE){
     return {removedIds:[],positions:[]};
   }
@@ -323,6 +341,7 @@ function resolveMatchesFrom(startId){
       if(other.faces.top!==value) continue;
 
       const adjacent=Math.abs(current.x-other.x)+Math.abs(current.y-other.y)===1;
+
       if(adjacent){
         visited.add(other.id);
         queue.push(other);
