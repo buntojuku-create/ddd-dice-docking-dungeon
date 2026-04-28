@@ -1,1 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DDD - Dice Docking Dungeon</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <div>
+        <h1>DDD</h1>
+        <p>Dice Docking Dungeon</p>
+      </div>
+      <button id="resetButton" class="small-button">リセット</button>
+    </header>
 
+    <section class="status-card">
+      <div>
+        <span class="label">ステージ</span>
+        <strong id="stageName">---</strong>
+      </div>
+      <div>
+        <span class="label">移動回数</span>
+        <strong id="moveCount">0</strong>
+      </div>
+      <div>
+        <span class="label">選択中</span>
+        <strong id="selectedInfo">なし</strong>
+      </div>
+    </section>
+
+    <section class="message" id="message">
+      ダイスをタップして選択。スワイプか十字キーで転がそう。
+    </section>
+
+    <section id="board" class="board" aria-label="ゲーム盤面"></section>
+
+    <section class="controls">
+      <button class="move-button up" data-dir="up">↑</button>
+      <button class="move-button left" data-dir="left">←</button>
+      <button class="move-button right" data-dir="right">→</button>
+      <button class="move-button down" data-dir="down">↓</button>
+    </section>
+
+    <section class="rule-card">
+      <h2>ルール</h2>
+      <p>数字コアの上下左右に、数字以上のダイスを並べると起動。</p>
+      <p>例：<strong>3コア</strong>なら、周囲にダイス3個以上でクリア。</p>
+    </section>
+  </main>
+
+  <div id="clearModal" class="modal hidden">
+    <div class="modal-content">
+      <h2>STAGE CLEAR!</h2>
+      <p id="clearText">クリア！</p>
+      <button id="modalResetButton">もう一度遊ぶ</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
